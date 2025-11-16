@@ -1,0 +1,20 @@
+.root {
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: #dddddd;
+}
+
+.label, .check-box {
+    -fx-text-fill: #ffffff;
+}
+
+.text-area, .text-field {
+    -fx-control-inner-background: #3c3f41;
+    -fx-text-fill: #ffffff;
+    -fx-highlight-fill: #555555;
+    -fx-highlight-text-fill: #ffffff;
+}
+
+.button {
+    -fx-background-color: #555555;
+    -fx-text-fill: #ffffff;
+}

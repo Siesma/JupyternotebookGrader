@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.example.demo.HelloController"
+      spacing="15"
+      alignment="TOP_LEFT"
+      prefWidth="800"
+      prefHeight="700"
+      style="-fx-background-color: #2b2b2b; -fx-text-fill: #dddddd;">
+
+    <padding>
+        <Insets top="15" bottom="15" left="15" right="15"/>
+    </padding>
+
+    <Label fx:id="submissionLabel" text="Submission Viewer"
+           style="-fx-font-size: 20px; -fx-text-fill: #eeeeee;"/>
+
+    <TextArea fx:id="submissionText"
+              prefHeight="300"
+              wrapText="true"
+              style="-fx-control-inner-background: #3c3f41; -fx-text-fill: #ffffff; -fx-highlight-fill: #555555; -fx-highlight-text-fill: #ffffff;"/>
+
+    <HBox spacing="10">
+        <Label text="Score:" style="-fx-text-fill: #dddddd;"/>
+        <TextField fx:id="scoreField" prefWidth="80"
+                   style="-fx-control-inner-background: #3c3f41; -fx-text-fill: #ffffff;" editable="false"/>
+    </HBox>
+
+    <VBox spacing="5">
+        <Label text="Grading Checklist:" style="-fx-text-fill: #ffffff;"/>
+        <CheckBox fx:id="cbMethodSignature" text="0.5P für Methodensignatur"/>
+        <CheckBox fx:id="cbNewArray" text="0.5P für Erstellen neues Array"/>
+        <CheckBox fx:id="cbLoop" text="1P für Schleife"/>
+        <CheckBox fx:id="cbFillArray" text="0.5P für Eintragen der Werte in neues Array"/>
+        <CheckBox fx:id="cbReturn" text="0.5P für Rückgabe"/>
+    </VBox>
+
+    <VBox spacing="5">
+        <Label text="Comments:" style="-fx-text-fill: #dddddd;"/>
+        <TextArea fx:id="commentField" prefHeight="100"
+                  style="-fx-control-inner-background: #3c3f41; -fx-text-fill: #ffffff; -fx-highlight-fill: #555555; -fx-highlight-text-fill: #ffffff;"/>
+    </VBox>
+
+    <HBox spacing="20">
+        <Button text="Previous" onAction="#onPrev" style="-fx-background-color: #555555; -fx-text-fill: #ffffff;"/>
+        <Button text="Next" onAction="#onNext" style="-fx-background-color: #555555; -fx-text-fill: #ffffff;"/>
+        <Button text="Save" onAction="#saveGrade" style="-fx-background-color: #555555; -fx-text-fill: #ffffff;"/>
+    </HBox>
+
+    <Label text="Outputs:" style="-fx-text-fill: #eeeeee;"/>
+    <TextArea fx:id="outputArea"
+              prefHeight="150"
+              wrapText="true"
+              editable="false"
+              style="-fx-control-inner-background: #3c3f41; -fx-text-fill: #ffffff; -fx-highlight-fill: #555555; -fx-highlight-text-fill: #ffffff;"/>
+    <Button text="Run" onAction="#runStudentCode"
+            style="-fx-background-color: #555555; -fx-text-fill: #ffffff;"/>
+
+
+</VBox>
