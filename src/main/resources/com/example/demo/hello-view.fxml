@@ -19,10 +19,20 @@
     <Label fx:id="submissionLabel" text="Submission Viewer"
            style="-fx-font-size: 20px; -fx-text-fill: #eeeeee;"/>
 
-    <TextArea fx:id="submissionText"
-              prefHeight="300"
-              wrapText="true"
-              style="-fx-control-inner-background: #3c3f41; -fx-text-fill: #ffffff; -fx-highlight-fill: #555555; -fx-highlight-text-fill: #ffffff;"/>
+    <HBox spacing="10">
+        <TextArea fx:id="submissionText"
+                  wrapText="true"
+                  prefHeight="300"
+                  HBox.hgrow="ALWAYS"
+                  style="-fx-control-inner-background: #3c3f41; -fx-text-fill: #ffffff;"/>
+
+        <TextArea fx:id="solutionText"
+                  wrapText="true"
+                  editable="false"
+                  prefHeight="300"
+                  HBox.hgrow="ALWAYS"
+                  style="-fx-control-inner-background: #2a2a2a; -fx-text-fill: #aaaaaa;"/>
+    </HBox>
 
     <HBox spacing="10">
         <Label text="Score:" style="-fx-text-fill: #dddddd;"/>
@@ -32,11 +42,7 @@
 
     <VBox spacing="5">
         <Label text="Grading Checklist:" style="-fx-text-fill: #ffffff;"/>
-        <CheckBox fx:id="cbMethodSignature" text="0.5P für Methodensignatur"/>
-        <CheckBox fx:id="cbNewArray" text="0.5P für Erstellen neues Array"/>
-        <CheckBox fx:id="cbLoop" text="1P für Schleife"/>
-        <CheckBox fx:id="cbFillArray" text="0.5P für Eintragen der Werte in neues Array"/>
-        <CheckBox fx:id="cbReturn" text="0.5P für Rückgabe"/>
+        <VBox fx:id="gradingBox" spacing="5"/>
     </VBox>
 
     <VBox spacing="5">
