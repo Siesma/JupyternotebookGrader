@@ -55,6 +55,10 @@ public class HelloController {
 
     public void initializeWithArgs(List<String> args) {
         this.args = args;
+        if(args.size() != 3) {
+            System.out.println("Usage: /../exercise_8.ipynb /../exam_solution.ipynb task_number");
+            System.exit(1);
+        }
         String pathToNotebook = args.get(0);
         String pathToSolution = args.get(1);
         int exerciseNumber = Integer.parseInt(args.get(2));
