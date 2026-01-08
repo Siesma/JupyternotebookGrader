@@ -16,6 +16,39 @@
         <Insets top="15" bottom="15" left="15" right="15"/>
     </padding>
 
+    <HBox spacing="10"
+          alignment="CENTER_LEFT"
+          style="-fx-background-color: #1f1f1f; -fx-padding: 8;">
+
+        <Button text="Load Solutions"
+                onAction="#onLoadSolutionNotebook"
+                style="-fx-background-color: #444444; -fx-text-fill: #ffffff;"/>
+
+        <Button text="Load Submissions"
+                onAction="#onLoadHandinNotebook"
+                style="-fx-background-color: #444444; -fx-text-fill: #ffffff;"/>
+
+        <Button text="Save Exercise"
+                onAction="#saveGrade"
+                style="-fx-background-color: #444444; -fx-text-fill: #ffffff;"/>
+
+        <Region HBox.hgrow="ALWAYS"/>
+
+        <Label text="Exercise:" style="-fx-text-fill: #cccccc;"
+               visible="false" fx:id="exerciseLabel"/>
+
+        <Slider fx:id="exerciseSlider"
+                min="1"
+                max="1"
+                majorTickUnit="1"
+                snapToTicks="true"
+                showTickMarks="true"
+                showTickLabels="true"
+                visible="false"
+                prefWidth="200"/>
+    </HBox>
+
+
     <Label fx:id="submissionLabel" text="Submission Viewer"
            style="-fx-font-size: 20px; -fx-text-fill: #eeeeee;"/>
 
@@ -41,9 +74,10 @@
     </HBox>
 
     <VBox spacing="5">
-        <Label text="Grading Checklist:" style="-fx-text-fill: #ffffff;"/>
-        <VBox fx:id="gradingBox" spacing="5"/>
+        <Label text="Notens-chlüssel:" style="-fx-text-fill: #ffffff;"/>
+        <VBox fx:id="gradingBox" spacing="10"/>
     </VBox>
+
 
     <VBox spacing="5">
         <Label text="Comments:" style="-fx-text-fill: #dddddd;"/>
@@ -54,7 +88,7 @@
     <HBox spacing="20">
         <Button text="Previous" onAction="#onPrev" style="-fx-background-color: #555555; -fx-text-fill: #ffffff;"/>
         <Button text="Next" onAction="#onNext" style="-fx-background-color: #555555; -fx-text-fill: #ffffff;"/>
-        <Button text="Save" onAction="#saveGrade" style="-fx-background-color: #555555; -fx-text-fill: #ffffff;"/>
+        <Button text="Save (backup)" onAction="#emergencySave" style="-fx-background-color: #555555; -fx-text-fill: #ffffff;"/>
     </HBox>
 
     <Label text="Outputs:" style="-fx-text-fill: #eeeeee;"/>

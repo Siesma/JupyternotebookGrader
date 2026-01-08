@@ -3,16 +3,16 @@ package com.example.demo;
 import helper.JSONImporter;
 import helper.Solution;
 import helper.Submission;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import runner.SubmissionRunner;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,7 +38,7 @@ public class HelloController {
     @FXML
     private VBox gradingBox;
 
-    private List<CheckBox> gradingCheckBoxes = new ArrayList<>();
+    private List<Slider> gradingSliders = new ArrayList<>();
 
     private List<Submission> submissions = new ArrayList<>();
     private List<Solution> solutions = new ArrayList<>();
@@ -49,37 +49,24 @@ public class HelloController {
     private JSONObject solutionNotebook;
 
     private List<String> tempComments;
-    private List<boolean[]> tempGrading;
+    private List<double[]> tempGrading;
     private double[] points;
     private String[] pointLabels;
 
     public void initializeWithArgs(List<String> args) {
         this.args = args;
-        if(args.size() != 3) {
-            System.out.println("Usage: /../exercise_8.ipynb /../exam_solution.ipynb task_number");
-            System.exit(1);
-        }
-        String pathToNotebook = args.get(0);
-        String pathToSolution = args.get(1);
-        int exerciseNumber = Integer.parseInt(args.get(2));
+//        if (args.size() != 3) {
+//            System.out.println("Usage: /../exercise_8.ipynb /../exam_solution.ipynb task_number");
+//            System.exit(1);
+//        }
+//        String pathToNotebook = args.get(0);
+//        String pathToSolution = args.get(1);
+//        int exerciseNumber = Integer.parseInt(args.get(2));
+//
+//        loadSolutionNotebook(pathToSolution);
+//        loadHandinNotebook(pathToNotebook);
+//        loadRelevantSolution(exerciseNumber);
 
-        loadSolutionNotebook(pathToSolution);
-        loadHandinNotebook(pathToNotebook);
-        loadRelevantSolution(exerciseNumber);
-
-
-        tempComments = new ArrayList<>();
-        tempGrading = new ArrayList<>();
-
-        for (int i = 0; i < submissions.size(); i++) {
-            tempComments.add("");
-            tempGrading.add(new boolean[points.length]);
-        }
-
-        addCheckboxListeners();
-
-        if (!submissions.isEmpty()) showSubmission(0);
-        runStudentCode();
     }
 
     private void loadHandinNotebook(String pathToNotebook) {
@@ -115,9 +102,10 @@ public class HelloController {
     }
 
     private void loadRelevantSolution(int exerciseNumber) {
+        tempComments = new ArrayList<>();
+        tempGrading = new ArrayList<>();
         int curTask = 0;
         for (Solution solution : solutions) {
-
             curTask++;
             if (curTask != exerciseNumber) {
                 continue;
@@ -170,42 +158,79 @@ public class HelloController {
         buildGradingChecklist();
     }
 
+    private void initTempFields () {
+        tempComments.clear();
+        tempGrading.clear();
+
+        for (int i = 0; i < submissions.size(); i++) {
+            tempComments.add("");
+            tempGrading.add(new double[points.length]);
+        }
+    }
+
     private void buildGradingChecklist() {
         gradingBox.getChildren().clear();
-        gradingCheckBoxes.clear();
+        gradingSliders.clear();
+
+        // Ensure tempGrading has correct structure
+        if (tempGrading.isEmpty()) {
+            initTempFields();
+        }
 
         for (int i = 0; i < points.length; i++) {
             int idx = i;
+            double maxPoints = points[i];
 
-            CheckBox cb = new CheckBox(points[i] + "P | " + pointLabels[i]);
-            cb.setStyle("-fx-text-fill: #ffffff;");
+            Label label = new Label();
+            label.setStyle("-fx-text-fill: #ffffff;");
 
-            cb.selectedProperty().addListener((obs, oldV, newV) -> {
-                tempGrading.get(currentIndex)[idx] = newV;
+            Slider slider = new Slider(0, maxPoints, 0);
+            slider.setBlockIncrement(0.5);
+            slider.setMajorTickUnit(0.5);
+            slider.setMinorTickCount(0);
+            slider.setSnapToTicks(true);
+            slider.setShowTickLabels(true);
+            slider.setShowTickMarks(true);
+
+            label.setText(String.format(
+                    "%.1f / %.1f | %s",
+                    0.0, maxPoints, pointLabels[i]
+            ));
+
+            slider.valueProperty().addListener((obs, oldV, newV) -> {
+                double rounded = Math.round(newV.doubleValue() * 2) / 2.0;
+                if (rounded != slider.getValue()) {
+                    slider.setValue(rounded);
+                    return;
+                }
+
+                tempGrading.get(currentIndex)[idx] = rounded;
+
+                label.setText(String.format(
+                        "%.1f / %.1f | %s",
+                        rounded, maxPoints, pointLabels[idx]
+                ));
+
                 updateScorePreview();
             });
 
-            gradingCheckBoxes.add(cb);
-            gradingBox.getChildren().add(cb);
+            gradingSliders.add(slider);
+
+            VBox entry = new VBox(4, label, slider);
+            gradingBox.getChildren().add(entry);
         }
     }
 
 
-    private void addCheckboxListeners() {
-        gradingCheckBoxes.forEach(e -> {
-            e.setOnAction(b -> updateScorePreview());
-        });
-    }
 
     private void updateScorePreview() {
-        boolean[] grading = tempGrading.get(currentIndex);
         double total = 0.0;
-
-        for (int i = 0; i < points.length; i++) {
-            if (grading[i]) total += points[i];
+        for (double v : tempGrading.get(currentIndex)) {
+            total += v;
         }
 
-        scoreField.setText(String.format("%.1f", total));
+        double max = Arrays.stream(points).sum();
+        scoreField.setText(String.format("%.1f / %.1f", total, max));
     }
 
 
@@ -227,17 +252,23 @@ public class HelloController {
             submissionText.setText("");
         }
 
-        boolean[] grading = tempGrading.get(index);
-        for (int i = 0; i < gradingCheckBoxes.size(); i++) {
-            gradingCheckBoxes.get(i).setSelected(grading[i]);
+        double[] grading = tempGrading.get(index);
+        for (int i = 0; i < gradingSliders.size(); i++) {
+            gradingSliders.get(i).setValue(grading[i]);
         }
-        for (int i = 0; i < gradingCheckBoxes.size(); i++) gradingCheckBoxes.get(i).setSelected(grading[i]);
 
         commentField.setText(tempComments.get(index));
 
+        double maxPoints = 0;
+        for (int i = 0; i < points.length; i++) {
+            maxPoints += points[i];
+        }
+
         double total = 0;
-        for (int i = 0; i < points.length; i++) if (grading[i]) total += points[i];
-        scoreField.setText(String.format("%.1f / %.1f", total, 3.0));
+        for (int i = 0; i < points.length; i++) {
+            total += gradingSliders.get(i).getValue();
+        }
+        scoreField.setText(String.format("%.1f / %.1f", total, maxPoints));
 
         JSONArray outputs = submissionCell.optJSONArray("outputs");
         if (outputs != null && outputs.length() > 0) {
@@ -310,9 +341,9 @@ public class HelloController {
     private void saveTempCurrent() {
         tempComments.set(currentIndex, commentField.getText());
 
-        boolean[] grading = tempGrading.get(currentIndex);
-        for (int i = 0; i < gradingCheckBoxes.size(); i++) {
-            grading[i] = gradingCheckBoxes.get(i).isSelected();
+        double[] grading = tempGrading.get(currentIndex);
+        for (int i = 0; i < gradingSliders.size(); i++) {
+            grading[i] = gradingSliders.get(i).getValue();
         }
     }
 
@@ -321,20 +352,37 @@ public class HelloController {
     private void saveGrade() {
         saveTempCurrent();
 
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Save Graded Notebook");
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Jupyter Notebook (*.ipynb)", "*.ipynb")
+        );
+        chooser.setInitialFileName("graded_notebook.ipynb");
+
+        File file = chooser.showSaveDialog(submissionText.getScene().getWindow());
+        if (file == null) {
+            return;
+        }
+
+        String path = file.getAbsolutePath();
+        if (!path.endsWith(".ipynb")) {
+            path += ".ipynb";
+        }
+
         for (int i = 0; i < submissions.size(); i++) {
             Submission sub = submissions.get(i);
 
             int scoreIndex = sub.getCellStartIndex() + 3;
             int commentIndex = sub.getCellStartIndex() + 4;
 
-            boolean[] grading = tempGrading.get(i);
+            double[] grading = tempGrading.get(i);
 
             double total = 0;
             StringBuilder breakdown = new StringBuilder();
 
             for (int j = 0; j < points.length; j++) {
-                double earned = grading[j] ? points[j] : 0.0;
-                if (grading[j]) total += points[j];
+                double earned = grading[j];
+                total += earned;
 
                 breakdown.append(String.format(
                         "%.1f/%.1f | %s%n",
@@ -351,7 +399,7 @@ public class HelloController {
             adjustSource(submissionNotebook, commentIndex, breakdown.toString());
         }
 
-        saveNotebookAsNew("/home/tom/Downloads/new.ipynb");
+        saveNotebookAsNew(path);
     }
 
 
@@ -374,4 +422,84 @@ public class HelloController {
             e.printStackTrace();
         }
     }
+
+    @FXML
+    public void onLoadSolutionNotebook(ActionEvent actionEvent) {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Select Solution Notebook");
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Jupyter Notebook (*.ipynb)", "*.ipynb")
+        );
+
+        File file = chooser.showOpenDialog(submissionText.getScene().getWindow());
+        if (file == null) return;
+
+        loadSolutionNotebook(file.getAbsolutePath());
+
+        if (solutions.isEmpty()) return;
+
+        // Build list: 1, 2, 3, ...
+        List<Integer> taskNumbers = new ArrayList<>();
+        for (int i = 1; i <= solutions.size(); i++) {
+            taskNumbers.add(i);
+        }
+
+        ChoiceDialog<Integer> dialog =
+                new ChoiceDialog<>(taskNumbers.get(0), taskNumbers);
+
+        dialog.setTitle("Select Exercise");
+        dialog.setHeaderText("Choose which exercise to load");
+        dialog.setContentText("Exercise:");
+
+        dialog.showAndWait().ifPresent(this::loadRelevantSolution);
+    }
+
+    @FXML
+    private void onLoadHandinNotebook() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Select Submission Notebook");
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Jupyter Notebook (*.ipynb)", "*.ipynb")
+        );
+
+        File file = chooser.showOpenDialog(submissionText.getScene().getWindow());
+        if (file != null) {
+            loadHandinNotebook(file.getAbsolutePath());
+            if (!submissions.isEmpty()) {
+                currentIndex = 0;
+            }
+        } else {
+            System.err.println("BUG");
+        }
+        initTempFields();
+        if (!submissions.isEmpty()) showSubmission(0);
+        runStudentCode();
+    }
+
+
+    @FXML
+    private void emergencySave(ActionEvent actionEvent) {
+        for(int i = 0 ; i < submissions.size(); i++) {
+            double[] grading = tempGrading.get(i);
+            double total = 0;
+            StringBuilder breakdown = new StringBuilder();
+
+            for (int j = 0; j < points.length; j++) {
+                double earned = grading[j];
+                total += earned;
+
+                breakdown.append(String.format(
+                        "%.1f/%.1f | %s%n",
+                        earned, points[j], pointLabels[j]
+                ));
+            }
+            System.out.printf("""
+                    ----------\n
+                    Submission %s\n
+                    Grading: %s\n
+                    Grade: %s\n
+                    """, i, breakdown.toString(), total);
+        }
+    }
+
 }
