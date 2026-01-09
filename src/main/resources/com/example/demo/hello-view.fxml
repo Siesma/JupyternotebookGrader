@@ -33,6 +33,13 @@
                 style="-fx-background-color: #444444; -fx-text-fill: #ffffff;"/>
 
         <Region HBox.hgrow="ALWAYS"/>
+        <Label text="Runner:"
+               style="-fx-text-fill: #cccccc;"/>
+
+        <ChoiceBox fx:id="runnerChoice"
+                   onAction="#changeSubmissionRunner"
+                   prefWidth="120"
+                   style="-fx-background-color: #3c3f41; -fx-mark-color: white;"/>
 
         <Label text="Exercise:" style="-fx-text-fill: #cccccc;"
                visible="false" fx:id="exerciseLabel"/>
@@ -74,8 +81,8 @@
     </HBox>
 
     <VBox spacing="5">
-        <Label text="Notens-chlüssel:" style="-fx-text-fill: #ffffff;"/>
-        <VBox fx:id="gradingBox" spacing="10"/>
+        <Label text="Noten-schlüssel:" style="-fx-text-fill: #ffffff;"/>
+        <VBox fx:id="gradingBox" spacing="5"/>
     </VBox>
 
 

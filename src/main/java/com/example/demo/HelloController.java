@@ -5,17 +5,22 @@ import helper.Solution;
 import helper.Submission;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import runner.JavaRunner;
+import runner.PythonRunner;
 import runner.SubmissionRunner;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.io.IOException;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,14 +34,15 @@ public class HelloController {
     private TextField scoreField;
     @FXML
     private TextArea commentField;
-
     @FXML
     private TextArea outputArea;
     @FXML
     private Label submissionLabel;
-
     @FXML
     private VBox gradingBox;
+    @FXML
+    private ChoiceBox<String> runnerChoice;
+
 
     private List<Slider> gradingSliders = new ArrayList<>();
 
@@ -53,21 +59,31 @@ public class HelloController {
     private double[] points;
     private String[] pointLabels;
 
+    private SubmissionRunner submissionRunner;
+    private final HashMap<String, SubmissionRunner> submissionRunners = new HashMap<>();
+
     public void initializeWithArgs(List<String> args) {
         this.args = args;
-//        if (args.size() != 3) {
-//            System.out.println("Usage: /../exercise_8.ipynb /../exam_solution.ipynb task_number");
-//            System.exit(1);
-//        }
-//        String pathToNotebook = args.get(0);
-//        String pathToSolution = args.get(1);
-//        int exerciseNumber = Integer.parseInt(args.get(2));
-//
-//        loadSolutionNotebook(pathToSolution);
-//        loadHandinNotebook(pathToNotebook);
-//        loadRelevantSolution(exerciseNumber);
-
+        initializeRunnerChoice();
     }
+
+    @FXML
+    private void initializeRunnerChoice() {
+
+        this.submissionRunners.put("Java".toLowerCase(Locale.ROOT), new JavaRunner());
+        this.submissionRunners.put("Python".toLowerCase(Locale.ROOT), new PythonRunner());
+
+        runnerChoice.getItems().setAll(
+                submissionRunners.keySet().stream()
+                        .map(s -> s.substring(0, 1).toUpperCase() + s.substring(1))
+                        .toList()
+        );
+
+        runnerChoice.setValue("Java");
+        this.changeSubmissionRunner(null);
+        runnerChoice.setOnAction(this::changeSubmissionRunner);
+    }
+
 
     private void loadHandinNotebook(String pathToNotebook) {
         JSONImporter importer = new JSONImporter();
@@ -158,7 +174,7 @@ public class HelloController {
         buildGradingChecklist();
     }
 
-    private void initTempFields () {
+    private void initTempFields() {
         tempComments.clear();
         tempGrading.clear();
 
@@ -172,55 +188,51 @@ public class HelloController {
         gradingBox.getChildren().clear();
         gradingSliders.clear();
 
-        // Ensure tempGrading has correct structure
-        if (tempGrading.isEmpty()) {
-            initTempFields();
-        }
-
         for (int i = 0; i < points.length; i++) {
             int idx = i;
-            double maxPoints = points[i];
 
             Label label = new Label();
             label.setStyle("-fx-text-fill: #ffffff;");
+            label.setMinWidth(450);
+            label.setMaxWidth(450);
 
-            Slider slider = new Slider(0, maxPoints, 0);
+            Slider slider = new Slider(0, points[i], 0);
             slider.setBlockIncrement(0.5);
             slider.setMajorTickUnit(0.5);
             slider.setMinorTickCount(0);
             slider.setSnapToTicks(true);
-            slider.setShowTickLabels(true);
             slider.setShowTickMarks(true);
-
-            label.setText(String.format(
-                    "%.1f / %.1f | %s",
-                    0.0, maxPoints, pointLabels[i]
-            ));
+            slider.setShowTickLabels(true);
 
             slider.valueProperty().addListener((obs, oldV, newV) -> {
                 double rounded = Math.round(newV.doubleValue() * 2) / 2.0;
-                if (rounded != slider.getValue()) {
+
+                if (slider.getValue() != rounded) {
                     slider.setValue(rounded);
-                    return;
                 }
 
                 tempGrading.get(currentIndex)[idx] = rounded;
-
-                label.setText(String.format(
-                        "%.1f / %.1f | %s",
-                        rounded, maxPoints, pointLabels[idx]
-                ));
-
                 updateScorePreview();
+
+                label.setText(
+                        String.format("%.1f/%.1f | %s",
+                                rounded, points[idx], pointLabels[idx])
+                );
             });
+
+            label.setText(
+                    String.format("0.0/%.1f | %s",
+                            points[idx], pointLabels[idx])
+            );
 
             gradingSliders.add(slider);
 
-            VBox entry = new VBox(4, label, slider);
-            gradingBox.getChildren().add(entry);
+            HBox row = new HBox(10, label, slider);
+            row.setAlignment(Pos.CENTER_LEFT);
+
+            gradingBox.getChildren().add(row);
         }
     }
-
 
 
     private void updateScorePreview() {
@@ -311,31 +323,48 @@ public class HelloController {
             currentIndex--;
             showSubmission(currentIndex);
         }
+        runStudentCode();
     }
 
     @FXML
     private void runStudentCode() {
+        if (submissionRunner == null) {
+            return;
+        }
         String code = submissionText.getText();
-        String className = extractClassName(code); // helper function to parse class name
-
+        String className = extractMainClassName(code);
+        if (className == null) {
+            return;
+        }
         try {
-            String output = SubmissionRunner.compileAndRun(className, code, 5); // 5 second timeout
+            String output = submissionRunner.compileAndRun(className, code, 5);
             outputArea.setText(output);
         } catch (Exception e) {
             outputArea.setText("Error running code:\n" + e.getMessage());
         }
     }
 
-    private String extractClassName(String code) {
-        String[] lines = code.split("\n");
-        for (String line : lines) {
-            line = line.trim();
-            if (line.startsWith("class ")) {
-                String[] parts = line.split("\\s+");
-                if (parts.length >= 2) return parts[1];
+    private String extractMainClassName(String code) {
+        if (submissionRunner instanceof PythonRunner) {
+            return "student_code";
+        }
+        String[] lines = code.split("\\R");
+
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].trim();
+
+            if (line.matches(".*public\\s+static\\s+void\\s+main\\s*\\(.*String\\s*\\[]\\s+args.*\\).*")) {
+
+                for (int j = i; j >= 0; j--) {
+                    String prev = lines[j].trim();
+
+                    if (prev.matches("(public\\s+)?class\\s+\\w+.*")) {
+                        return prev.replaceAll(".*class\\s+(\\w+).*", "$1");
+                    }
+                }
             }
         }
-        return "StudentClass"; // fallback
+        return null;
     }
 
     private void saveTempCurrent() {
@@ -438,7 +467,6 @@ public class HelloController {
 
         if (solutions.isEmpty()) return;
 
-        // Build list: 1, 2, 3, ...
         List<Integer> taskNumbers = new ArrayList<>();
         for (int i = 1; i <= solutions.size(); i++) {
             taskNumbers.add(i);
@@ -450,6 +478,12 @@ public class HelloController {
         dialog.setTitle("Select Exercise");
         dialog.setHeaderText("Choose which exercise to load");
         dialog.setContentText("Exercise:");
+
+        dialog.setOnShown(e -> {
+            Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
+            stage.setAlwaysOnTop(true);
+            stage.requestFocus();
+        });
 
         dialog.showAndWait().ifPresent(this::loadRelevantSolution);
     }
@@ -479,7 +513,7 @@ public class HelloController {
 
     @FXML
     private void emergencySave(ActionEvent actionEvent) {
-        for(int i = 0 ; i < submissions.size(); i++) {
+        for (int i = 0; i < submissions.size(); i++) {
             double[] grading = tempGrading.get(i);
             double total = 0;
             StringBuilder breakdown = new StringBuilder();
@@ -496,10 +530,23 @@ public class HelloController {
             System.out.printf("""
                     ----------\n
                     Submission %s\n
-                    Grading: %s\n
+                    Grading: \n%s\n
                     Grade: %s\n
                     """, i, breakdown.toString(), total);
         }
     }
+
+    @FXML
+    private void changeSubmissionRunner(ActionEvent actionEvent) {
+        String selected = runnerChoice.getValue();
+        if (selected == null) return;
+
+        submissionRunner = submissionRunners.get(
+                selected.toLowerCase(Locale.ROOT)
+        );
+
+        runStudentCode();
+    }
+
 
 }
