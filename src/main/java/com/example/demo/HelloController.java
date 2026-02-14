@@ -1,14 +1,11 @@
 package com.example.demo;
 
-import helper.JSONImporter;
-import helper.Solution;
-import helper.Submission;
+import helper.*;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -19,7 +16,6 @@ import runner.PythonRunner;
 import runner.SubmissionRunner;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,16 +42,14 @@ public class HelloController {
 
     private List<Slider> gradingSliders = new ArrayList<>();
 
-    private List<Submission> submissions = new ArrayList<>();
-    private List<Solution> solutions = new ArrayList<>();
     private int currentIndex = 0;
-    private List<String> args;
 
-    private JSONObject submissionNotebook;
-    private JSONObject solutionNotebook;
+    private Notebook submissionNotebook;
+    private Notebook solutionNotebook;
 
     private List<String> tempComments;
     private List<double[]> tempGrading;
+
     private double[] points;
     private String[] pointLabels;
 
@@ -63,7 +57,6 @@ public class HelloController {
     private final HashMap<String, SubmissionRunner> submissionRunners = new HashMap<>();
 
     public void initializeWithArgs(List<String> args) {
-        this.args = args;
         initializeRunnerChoice();
     }
 
@@ -86,51 +79,38 @@ public class HelloController {
 
 
     private void loadHandinNotebook(String pathToNotebook) {
-        JSONImporter importer = new JSONImporter();
-        submissionNotebook = importer.importJSONObj(pathToNotebook);
-
-        JSONArray allCells = submissionNotebook.getJSONArray("cells");
-
-        for (int i = 0; i < allCells.length(); i++) {
-            JSONObject curCell = allCells.getJSONObject(i);
-            if (!Submission.isSubmissionCell(curCell)) continue;
-
-            Submission submission = Submission.parseSubmission(submissionNotebook, i);
-            submissions.add(submission);
-            i += submission.getCells().size() - 1;
-        }
+        submissionNotebook = new Notebook(pathToNotebook, NotebookType.HANDIN);
     }
 
     private void loadSolutionNotebook(String pathToNotebook) {
-        JSONImporter importer = new JSONImporter();
-        solutionNotebook = importer.importJSONObj(pathToNotebook);
+        solutionNotebook = new Notebook(pathToNotebook, NotebookType.SOLUTION);
 
-        JSONArray allCells = solutionNotebook.getJSONArray("cells");
-
-        for (int i = 0; i < allCells.length(); i++) {
-            JSONObject curCell = allCells.getJSONObject(i);
-            if (!Solution.isSolutionCell(curCell)) continue;
-
-            Solution solution = Solution.parseSolution(solutionNotebook, i);
-            solutions.add(solution);
-            i += solution.getCells().size() - 1;
-        }
+        // Load language. 2nd cell in Handin notebook should have field "vscode: { languageId: _}"
+//        this.runnerChoice.setValue("Java");
+//        this.changeSubmissionRunner(null);
     }
 
     private void loadRelevantSolution(int exerciseNumber) {
+        // First cell in handin notebook should have a field "source: # Exercise _"
         tempComments = new ArrayList<>();
         tempGrading = new ArrayList<>();
         int curTask = 0;
-        for (Solution solution : solutions) {
+        for (NotebookCell cell : solutionNotebook.getCells()) {
             curTask++;
             if (curTask != exerciseNumber) {
                 continue;
             }
-            JSONObject solutionCodeField = solution.getCells().get("solutionCodeField");
-            JSONObject solutionSchema = solution.getCells().get("solutionSchema");
+
+            int solutionIndex_ = cell.determineSolutionCellIndex();
+            int solutionSchema_ = cell.determineGradingSchemeCellIndex();
+
+            JSONObject solutionCodeField = cell.getCells().get(solutionIndex_);
+
+            JSONObject solutionSchema = cell.getCells().get(solutionSchema_);
             loadSampleSolution(solutionCodeField);
             loadGradingSchema(solutionSchema);
         }
+
     }
 
     private void loadSampleSolution(JSONObject solutionCodeField) {
@@ -178,7 +158,7 @@ public class HelloController {
         tempComments.clear();
         tempGrading.clear();
 
-        for (int i = 0; i < submissions.size(); i++) {
+        for (int i = 0; i < submissionNotebook.getCells().size(); i++) {
             tempComments.add("");
             tempGrading.add(new double[points.length]);
         }
@@ -250,9 +230,11 @@ public class HelloController {
         submissionLabel.setText(String.format("Submission Viewer (Submission #%d)", currentIndex));
 
 
-        Submission s = submissions.get(index);
+        NotebookCell s = submissionNotebook.getCells().get(index);
 
-        JSONObject submissionCell = s.getCells().get("submission");
+        int submissionIndex_ = s.determineStudentSolutionCellIndex();
+
+        JSONObject submissionCell = s.getCells().get(submissionIndex_);
         JSONArray sourceField = submissionCell.optJSONArray("source");
         if (sourceField != null) {
             StringBuilder codeBuilder = new StringBuilder();
@@ -309,7 +291,7 @@ public class HelloController {
     @FXML
     private void onNext() {
         saveTempCurrent();
-        if (currentIndex < submissions.size() - 1) {
+        if (currentIndex < submissionNotebook.getCells().size() - 1) {
             currentIndex++;
             showSubmission(currentIndex);
         }
@@ -368,6 +350,9 @@ public class HelloController {
     }
 
     private void saveTempCurrent() {
+        if(tempComments == null || tempComments.size() == 0) {
+            return;
+        }
         tempComments.set(currentIndex, commentField.getText());
 
         double[] grading = tempGrading.get(currentIndex);
@@ -398,11 +383,11 @@ public class HelloController {
             path += ".ipynb";
         }
 
-        for (int i = 0; i < submissions.size(); i++) {
-            Submission sub = submissions.get(i);
+        for (int i = 0; i < submissionNotebook.getCells().size(); i++) {
+            NotebookCell sub = submissionNotebook.getCells().get(i);
 
-            int scoreIndex = sub.getCellStartIndex() + 3;
-            int commentIndex = sub.getCellStartIndex() + 4;
+            int scoreIndex = sub.getCellStartIndex() + sub.determineScoreCellIndex();
+            int commentIndex = sub.getCellStartIndex() + sub.determineCommentCellIndex();
 
             double[] grading = tempGrading.get(i);
 
@@ -419,13 +404,13 @@ public class HelloController {
                 ));
             }
 
-            adjustSource(submissionNotebook, scoreIndex, String.valueOf(total));
+            adjustSource(submissionNotebook.getJsonRepresentation(), scoreIndex, String.valueOf(total));
 
             if (!tempComments.get(i).isBlank()) {
                 breakdown.append("\n").append(tempComments.get(i));
             }
 
-            adjustSource(submissionNotebook, commentIndex, breakdown.toString());
+            adjustSource(submissionNotebook.getJsonRepresentation(), commentIndex, breakdown.toString());
         }
 
         saveNotebookAsNew(path);
@@ -446,7 +431,7 @@ public class HelloController {
     private void saveNotebookAsNew(String outputPath) {
         if (submissionNotebook == null) return;
         try (java.io.FileWriter file = new java.io.FileWriter(outputPath)) {
-            file.write(submissionNotebook.toString(2));
+            file.write(submissionNotebook.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -465,10 +450,10 @@ public class HelloController {
 
         loadSolutionNotebook(file.getAbsolutePath());
 
-        if (solutions.isEmpty()) return;
+        if (solutionNotebook.getCells().isEmpty()) return;
 
         List<Integer> taskNumbers = new ArrayList<>();
-        for (int i = 1; i <= solutions.size(); i++) {
+        for (int i = 1; i <= solutionNotebook.getCells().size(); i++) {
             taskNumbers.add(i);
         }
 
@@ -499,21 +484,21 @@ public class HelloController {
         File file = chooser.showOpenDialog(submissionText.getScene().getWindow());
         if (file != null) {
             loadHandinNotebook(file.getAbsolutePath());
-            if (!submissions.isEmpty()) {
+            if (!solutionNotebook.getCells().isEmpty()) {
                 currentIndex = 0;
             }
         } else {
             System.err.println("BUG");
         }
         initTempFields();
-        if (!submissions.isEmpty()) showSubmission(0);
+        if (!solutionNotebook.getCells().isEmpty()) showSubmission(0);
         runStudentCode();
     }
 
 
     @FXML
     private void emergencySave(ActionEvent actionEvent) {
-        for (int i = 0; i < submissions.size(); i++) {
+        for (int i = 0; i < solutionNotebook.getCells().size(); i++) {
             double[] grading = tempGrading.get(i);
             double total = 0;
             StringBuilder breakdown = new StringBuilder();
